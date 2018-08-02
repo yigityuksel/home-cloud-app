@@ -2,9 +2,7 @@ const fs = require('fs')
 const { google } = require('googleapis')
 
 const CREDENTIALS = JSON.parse(fs.readFileSync('./google-api/credentials.json', 'utf8'));
-const SCOPES = ['https://www.googleapis.com/auth/photoslibrary.readonly']
-
-console.log(CREDENTIALS);
+const SCOPES = ['https://www.googleapis.com/auth/drive']
 
 module.exports = (app, express) => {
     app.use((req, res, next) => {
@@ -13,6 +11,7 @@ module.exports = (app, express) => {
             scopes: SCOPES
         }).then((auth) => {
             google.auth.getDefaultProjectId().then(project => {
+                console.log("User Authenticated")
                 req.oauth2 = auth
                 req.oauth2_project = project
                 next();
