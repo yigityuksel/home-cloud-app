@@ -1,86 +1,119 @@
 const { google } = require('googleapis');
 const fs = require('fs');
-const os = require('os');
 const uuid = require('uuid');
 const path = require('path');
+const os = require('os');
 
-function getDriveFiles(auth, callback) {
+const auth = require('./oauth2_handler');
 
-    var latestFolderName = "";
+const errorLog = require('../utils/logger').errorlog;
+const successlog = require('../utils/logger').successlog;
 
-    google.drive({
-        version: 'v3',
-        auth: auth
-    }).files.list({
+let externalFilePath = path.join(os.tmpdir(), "test");
+
+var gDrive = null;
+var latestFolderName = "";
+
+function getDriveFiles() {
+
+    auth.authClient(function (error, auth) {
+
+        if (error) {
+            errorLog.error(error);
+        }
+
+        gDrive = google.drive({
+            version: 'v3',
+            auth: auth
+        });
+
+        driveList(null);
+
+    });
+
+};
+
+function driveList(token) {
+
+    gDrive.files.list({
         corpus: 'user',
-        pageSize: 100,
-        orderBy: 'createdTime'
+        pageSize: 10,
+        orderBy: 'createdTime',
+        pageToken: token
     }, (err, { data }) => {
+
+        var token = data.nextPageToken;
+
+        console.log(data.files);
 
         data.files.forEach(element => {
 
             if (element.mimeType == "application/vnd.google-apps.folder") {
-                fs.mkdirSync(path.join(os.tmpdir(), "test", element.name));
-                latestFolderName = element.name;
+
+                var joinedPath = path.join(externalFilePath, element.name);
+
+                if (!fs.exists(joinedPath)) {
+
+                    fs.mkdirSync(joinedPath);
+                    latestFolderName = element.name;
+
+                }
+
+                successlog.info(`New Folder Found : ${latestFolderName}`);
+
             } else {
-                downloadDriveFile(element.id, latestFolderName + "\\" + element.name, auth);
+
+                successlog.info(`\t ${element.name}`);
+
+                download(element.id, latestFolderName + "\\" + element.name);
             }
 
         });
 
-    });
+        setTimeout(() => {
 
-};
+            successlog.info('New Request Made with new Token.');
 
-async function downloadDriveFile(fileId, fileName, auth) {
+            driveList(token);
 
-    return new Promise(async (resolve, reject) => {
-
-        try {
-
-            const filePath = path.join(os.tmpdir(), "test", fileName);
-            const dest = fs.createWriteStream(filePath);
-
-            console.log(`writing to ${filePath}`);
-
-            let progress = 0;
-
-            const res = await google.drive({
-                version: 'v3',
-                auth: auth
-            }).files.get(
-                { fileId, alt: 'media' },
-                { responseType: 'stream' }
-            );
-
-            res.data
-                .on('end', () => {
-                    console.log('Done downloading file.');
-                    resolve(filePath);
-                })
-                .on('error', err => {
-                    console.error('Error downloading file.');
-                    reject(err);
-                })
-                .on('data', d => {
-                    progress += d.length;
-                    process.stdout.clearLine();
-                    process.stdout.cursorTo(0);
-                    process.stdout.write(`Downloaded ${progress} bytes`);
-                })
-                .pipe(dest);
-
-        }
-        catch (e) {
-            console.log(e.stack)
-            return null
-        }
+        }, 2000);
 
     });
+
+}
+
+async function download(fileId, fileName) {
+
+    try {
+
+        const filePath = path.join(externalFilePath, fileName);
+        const dest = fs.createWriteStream(filePath);
+
+        let progress = 0;
+
+        var res = await gDrive.files.get(
+            { fileId, alt: 'media' },
+            { responseType: 'stream' }
+        );
+
+        res.data
+            .on('end', () => {
+                successlog.info(`Downloaded ${latestFolderName}`);
+            })
+            .on('error', err => {
+                errorLog.error(`Error Downloading ${latestFolderName}`);
+            })
+            .pipe(dest);
+
+
+    } catch (error) {
+
+        errorLog.error(`Try - Catch Error : ${error.message}`);
+
+    }
 
 };
 
 module.exports = {
-    getDriveFiles,
-    downloadDriveFile
+    getDriveFiles
 }
