@@ -9,7 +9,7 @@ const auth = require('./oauth2_handler');
 const errorLog = require('../utils/logger').errorlog;
 const successlog = require('../utils/logger').successlog;
 
-let externalFilePath = path.join(os.tmpdir(), "test");
+let externalFilePath = path.join("/mnt/hdd", "google-drive");
 
 var gDrive = null;
 var latestFolderName = "";
