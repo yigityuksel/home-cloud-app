@@ -42,69 +42,89 @@ function driveList(token) {
         pageToken: token
     }, (err, { data }) => {
 
-        var token = data.nextPageToken;
+        if (data == null || data == undefined) {
 
-        console.log(data.files);
+            errorLog.info(err);
 
-        data.files.forEach(element => {
+            setTimeout(() => {
 
-            if (element.mimeType == "application/vnd.google-apps.folder") {
+                successlog.info('Previous request failed re-trying in 10 sec with same token.');
 
-                var joinedPath = path.join(externalFilePath, element.name);
+                driveList(token);
 
-                if (!fs.existsSync(joinedPath)) {
+            }, 10000);
 
-                    fs.mkdirSync(joinedPath);
+        } else {
+
+            var token = data.nextPageToken;
+
+            data.files.forEach(element => {
+
+                if (element.mimeType == "application/vnd.google-apps.folder") {
+
+                    var joinedPath = path.join(externalFilePath, element.name);
+
+                    if (!fs.existsSync(joinedPath)) {
+
+                        fs.mkdirSync(joinedPath);
+                        
+                    } else {
+
+                        successlog.info(`New Folder Found : ${latestFolderName}`);
+
+                    }
+
                     latestFolderName = element.name;
+
+                } else {
+
+                    download(element.id, path.join(externalFilePath, latestFolderName, element.name));
 
                 }
 
-                successlog.info(`New Folder Found : ${latestFolderName}`);
+            });
 
-            } else {
+            setTimeout(() => {
 
-                successlog.info(`\t ${element.name}`);
+                successlog.info('New Request has been made.');
 
-                download(element.id, path.join(latestFolderName, element.name));
-            }
+                driveList(token);
 
-        });
+            }, 2000);
 
-        setTimeout(() => {
-
-            successlog.info('New Request Made with new Token.');
-
-            driveList(token);
-
-        }, 2000);
+        }
 
     });
 
 }
 
-async function download(fileId, fileName) {
+async function download(fileId, filePath) {
 
     try {
 
-        const filePath = path.join(externalFilePath, fileName);
-        const dest = fs.createWriteStream(filePath);
+        if (!fs.existsSync(filePath)) {
 
-        let progress = 0;
+            const dest = fs.createWriteStream(filePath);
 
-        var res = await gDrive.files.get(
-            { fileId, alt: 'media' },
-            { responseType: 'stream' }
-        );
+            var res = await gDrive.files.get(
+                { fileId, alt: 'media' },
+                { responseType: 'stream' }
+            );
 
-        res.data
-            .on('end', () => {
-                successlog.info(`Downloaded ${latestFolderName}`);
-            })
-            .on('error', err => {
-                errorLog.error(`Error Downloading ${latestFolderName}`);
-            })
-            .pipe(dest);
+            res.data
+                .on('end', () => {
+                    successlog.info(`Downloaded ${filePath}`);
+                })
+                .on('error', err => {
+                    errorLog.error(`Error Downloading ${filePath}`);
+                })
+                .pipe(dest);
 
+        } else {
+
+            errorLog.error(`File exists ${filePath}`)
+
+        }
 
     } catch (error) {
 
