@@ -65,7 +65,7 @@ function driveList(token) {
 
                 successlog.info(`\t ${element.name}`);
 
-                download(element.id, path.join(externalFilePath, latestFolderName, element.name));
+                download(element.id, path.join(latestFolderName, element.name));
             }
 
         });
@@ -82,10 +82,11 @@ function driveList(token) {
 
 }
 
-async function download(fileId, filePath) {
+async function download(fileId, fileName) {
 
     try {
 
+        const filePath = path.join(externalFilePath, fileName);
         const dest = fs.createWriteStream(filePath);
 
         let progress = 0;
@@ -97,17 +98,17 @@ async function download(fileId, filePath) {
 
         res.data
             .on('end', () => {
-                successlog.info(`Downloaded ${filePath}`);
+                successlog.info(`Downloaded ${latestFolderName}`);
             })
             .on('error', err => {
-                errorLog.error(`Error Downloading ${filePath}`);
+                errorLog.error(`Error Downloading ${latestFolderName}`);
             })
             .pipe(dest);
 
 
     } catch (error) {
 
-        errorLog.error(`Try - Catch Error : ${error}`);
+        errorLog.error(`Try - Catch Error : ${error.message}`);
 
     }
 
