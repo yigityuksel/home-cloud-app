@@ -52,7 +52,7 @@ function driveList(token) {
 
                 var joinedPath = path.join(externalFilePath, element.name);
 
-                if (!fs.exists(joinedPath)) {
+                if (!fs.existsSync(joinedPath)) {
 
                     fs.mkdirSync(joinedPath);
                     latestFolderName = element.name;
@@ -65,7 +65,7 @@ function driveList(token) {
 
                 successlog.info(`\t ${element.name}`);
 
-                download(element.id, latestFolderName + "\\" + element.name);
+                download(element.id, path.join(latestFolderName, element.name));
             }
 
         });
