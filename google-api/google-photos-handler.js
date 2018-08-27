@@ -6,20 +6,22 @@ const os = require('os');
 
 const auth = require('./oauth2_handler');
 
-const errorLog = require('../utils/logger').errorlog;
-const successlog = require('../utils/logger').successlog;
+const logger = require('../utils/logger').logger;
 
 let externalFilePath = path.join("/mnt/hdd", "google-drive");
 
 var gDrive = null;
 var latestFolderName = "";
 
+var folderStructure = [];
+var count = 1;
+
 function getDriveFiles() {
 
     auth.authClient(function (error, auth) {
 
         if (error) {
-            errorLog.error(error);
+            logger.error(error);
         }
 
         gDrive = google.drive({
@@ -27,70 +29,89 @@ function getDriveFiles() {
             auth: auth
         });
 
-        driveList(null);
+        driveList("sharedWithMe", "root", null, externalFilePath);
 
     });
 
 };
 
-function driveList(token) {
+function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
     gDrive.files.list({
         corpus: 'user',
-        pageSize: 10,
         orderBy: 'createdTime',
-        pageToken: token
+        q: query,
+        pageToken: nextPageToken,
+        pageSize: 10
     }, (err, { data }) => {
 
         if (data == null || data == undefined) {
 
-            errorLog.info(err);
+        logger.info("Folder Path : " + folderPath);
 
-            setTimeout(() => {
+        if (count > 100) {
+            logger.verbose("The count is " + count + " and will be 1");
+            count = 1;
+        }
 
-                successlog.info('Previous request failed re-trying in 10 sec with same token.');
-
-                driveList(token);
-
-            }, 10000);
-
-        } else {
-
-            var token = data.nextPageToken;
+        if (data.files.length > 0) {
 
             data.files.forEach(element => {
 
+                count++;
+
                 if (element.mimeType == "application/vnd.google-apps.folder") {
 
-                    var joinedPath = path.join(externalFilePath, element.name);
+                    var joinedPath = path.join(folderPath, element.name);
 
                     if (!fs.existsSync(joinedPath)) {
-
                         fs.mkdirSync(joinedPath);
-                        
                     } else {
-
-                        successlog.info(`New Folder Found : ${latestFolderName}`);
-
+                        logger.warn(`Folder exists : ${joinedPath}`);
                     }
 
-                    latestFolderName = element.name;
+                    folderStructure.push({
+                        parentFolderId: parentFolderId,
+                        kind: element.kind,
+                        id: element.id,
+                        name: element.name,
+                        mimeType: element.mimeType,
+                        path: joinedPath
+                    });
+
+                    logger.info("Path : " + joinedPath);
+
+                    setTimeout(() => {
+
+                        logger.info('Getting items in ' + element.name);
+
+                        driveList(`'${element.id}' in parents`, element.id, null, joinedPath);
+
+                    }, 500 * count);
 
                 } else {
 
-                    download(element.id, path.join(externalFilePath, latestFolderName, element.name));
+                    folderStructure.push({
+                        parentFolderId: parentFolderId,
+                        kind: element.kind,
+                        id: element.id,
+                        name: element.name,
+                        mimeType: element.mimeType,
+                        path: folderPath
+                    });
+
+                    download(element.id, path.join(folderPath, element.name));
 
                 }
-
             });
 
-            setTimeout(() => {
+            if (token != null) {
 
-                successlog.info('New Request has been made.');
+                setTimeout(() => {
+                    driveList(query, parentFolderId, token, folderPath);
+                }, 500 * count);
 
-                driveList(token);
-
-            }, 2000);
+            }
 
         }
 
@@ -102,7 +123,12 @@ async function download(fileId, filePath) {
 
     try {
 
-        if (!fs.existsSync(filePath)) {
+        if (fs.existsSync(filePath)) {
+            logger.warn(`File was downloaded : ${filePath}`);
+            return;
+        }
+
+        const dest = fs.createWriteStream(filePath);
 
             const dest = fs.createWriteStream(filePath);
 
@@ -111,14 +137,14 @@ async function download(fileId, filePath) {
                 { responseType: 'stream' }
             );
 
-            res.data
-                .on('end', () => {
-                    successlog.info(`Downloaded ${filePath}`);
-                })
-                .on('error', err => {
-                    errorLog.error(`Error Downloading ${filePath}`);
-                })
-                .pipe(dest);
+        res.data
+            .on('end', () => {
+                logger.info(`Downloaded ${filePath}`);
+            })
+            .on('error', err => {
+                logger.error(`Error Downloading ${filePath}`);
+            })
+            .pipe(dest);
 
         } else {
 
@@ -128,7 +154,7 @@ async function download(fileId, filePath) {
 
     } catch (error) {
 
-        errorLog.error(`Try - Catch Error : ${error.message}`);
+        logger.error(`Try - Catch Error : ${error}`);
 
     }
 

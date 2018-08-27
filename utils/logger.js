@@ -14,27 +14,40 @@ const createLogger = new winston.Logger({
   'transports': consoleConfig
 });
 
-const successLogger = createLogger;
-successLogger.add(winstonRotator, {
+const logger = createLogger;
+
+logger.add(winstonRotator, {
   'name': 'access-file',
   'level': 'info',
   'filename': './logs/access.log',
   'json': false,
-  'datePattern': 'yyyy-MM-dd-',
   'prepend': true
 });
 
-const errorLogger = createLogger;
-errorLogger.add(winstonRotator, {
+logger.add(winstonRotator, {
   'name': 'error-file',
   'level': 'error',
   'filename': './logs/error.log',
   'json': false,
-  'datePattern': 'yyyy-MM-dd-',
+  'prepend': true
+});
+
+logger.add(winstonRotator, {
+  'name': 'warn-file',
+  'level': 'warn',
+  'filename': './logs/warn.log',
+  'json': false,
+  'prepend': true
+});
+
+logger.add(winstonRotator, {
+  'name': 'verbose-file',
+  'level': 'verbose',
+  'filename': './logs/verbose.log',
+  'json': false,
   'prepend': true
 });
 
 module.exports = {
-  'successlog': successLogger,
-  'errorlog': errorLogger
+  'logger': logger
 };
