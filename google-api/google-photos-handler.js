@@ -12,7 +12,7 @@ let externalFilePath = path.join("/mnt/hdd", "google-drive");
 
 var gDrive = null;
 var count = 1;
-var timeInterval = 5000;
+var timeInterval = 2000;
 
 function getDriveFiles() {
 
@@ -47,7 +47,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
         logger.info("Folder Path : " + folderPath);
 
-        if (count > 50) {
+        if (count > 25) {
             logger.verbose("The count is " + count + " and will be 1");
             count = 1;
         }
@@ -87,7 +87,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
                         else
                             download(element.id, path.join(folderPath, element.name), element.mimeType);
 
-                    }, 5000);
+                    }, timeInterval * count);
 
                 }
             });
