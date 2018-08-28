@@ -8,7 +8,7 @@ const auth = require('./oauth2_handler');
 
 const logger = require('../utils/logger').logger;
 
-let externalFilePath = path.join("/mnt/hdd", "gd");
+let externalFilePath = path.join("/mnt/hdd", "google-drive");
 
 var gDrive = null;
 var count = 1;
