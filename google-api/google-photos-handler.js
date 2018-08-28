@@ -15,6 +15,7 @@ var latestFolderName = "";
 
 var folderStructure = [];
 var count = 1;
+var timeInterval = 100;
 
 function getDriveFiles() {
 
@@ -87,7 +88,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
                         driveList(`'${element.id}' in parents`, element.id, null, joinedPath);
 
-                    }, 500 * count);
+                    }, timeInterval * count);
 
                 } else {
 
@@ -109,7 +110,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
                 setTimeout(() => {
                     driveList(query, parentFolderId, token, folderPath);
-                }, 500 * count);
+                }, timeInterval * count);
 
             }
 
@@ -130,12 +131,10 @@ async function download(fileId, filePath) {
 
         const dest = fs.createWriteStream(filePath);
 
-            const dest = fs.createWriteStream(filePath);
-
-            var res = await gDrive.files.get(
-                { fileId, alt: 'media' },
-                { responseType: 'stream' }
-            );
+        var res = await gDrive.files.get(
+            { fileId, alt: 'media' },
+            { responseType: 'stream' }
+        );
 
         res.data
             .on('end', () => {
@@ -146,13 +145,8 @@ async function download(fileId, filePath) {
             })
             .pipe(dest);
 
-        } else {
-
-            errorLog.error(`File exists ${filePath}`)
-
-        }
-
-    } catch (error) {
+    }
+    catch (error) {
 
         logger.error(`Try - Catch Error : ${error}`);
 
