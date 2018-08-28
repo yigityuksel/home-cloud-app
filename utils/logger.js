@@ -19,7 +19,7 @@ const logger = createLogger;
 logger.add(winstonRotator, {
   'name': 'access-file',
   'level': 'info',
-  'filename': './logs/access.log',
+  'filename': './logs/dailyLogs.log',
   'json': false,
   'prepend': true
 });
@@ -27,7 +27,7 @@ logger.add(winstonRotator, {
 logger.add(winstonRotator, {
   'name': 'error-file',
   'level': 'error',
-  'filename': './logs/error.log',
+  'filename': './logs/dailyLogs.log',
   'json': false,
   'prepend': true
 });
@@ -35,7 +35,7 @@ logger.add(winstonRotator, {
 logger.add(winstonRotator, {
   'name': 'warn-file',
   'level': 'warn',
-  'filename': './logs/warn.log',
+  'filename': './logs/dailyLogs.log',
   'json': false,
   'prepend': true
 });
@@ -43,7 +43,7 @@ logger.add(winstonRotator, {
 logger.add(winstonRotator, {
   'name': 'verbose-file',
   'level': 'verbose',
-  'filename': './logs/verbose.log',
+  'filename': './logs/dailyLogs.log',
   'json': false,
   'prepend': true
 });

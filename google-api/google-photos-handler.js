@@ -8,14 +8,11 @@ const auth = require('./oauth2_handler');
 
 const logger = require('../utils/logger').logger;
 
-let externalFilePath = path.join("/mnt/hdd", "google-drive");
+let externalFilePath = path.join("/mnt/hdd", "gd");
 
 var gDrive = null;
-var latestFolderName = "";
-
-var folderStructure = [];
 var count = 1;
-var timeInterval = 100;
+var timeInterval = 5000;
 
 function getDriveFiles() {
 
@@ -50,7 +47,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
         logger.info("Folder Path : " + folderPath);
 
-        if (count > 100) {
+        if (count > 50) {
             logger.verbose("The count is " + count + " and will be 1");
             count = 1;
         }
@@ -71,15 +68,6 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
                         logger.warn(`Folder exists : ${joinedPath}`);
                     }
 
-                    folderStructure.push({
-                        parentFolderId: parentFolderId,
-                        kind: element.kind,
-                        id: element.id,
-                        name: element.name,
-                        mimeType: element.mimeType,
-                        path: joinedPath
-                    });
-
                     logger.info("Path : " + joinedPath);
 
                     setTimeout(() => {
@@ -92,16 +80,14 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
                 } else {
 
-                    folderStructure.push({
-                        parentFolderId: parentFolderId,
-                        kind: element.kind,
-                        id: element.id,
-                        name: element.name,
-                        mimeType: element.mimeType,
-                        path: folderPath
-                    });
+                    setTimeout(() => {
 
-                    download(element.id, path.join(folderPath, element.name));
+                        if (element.mimeType.includes("vnd.google-apps"))
+                            exportItem(element.id, path.join(folderPath, element.name), element.mimeType);
+                        else
+                            download(element.id, path.join(folderPath, element.name), element.mimeType);
+
+                    }, 5000);
 
                 }
             });
@@ -120,7 +106,7 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
 }
 
-async function download(fileId, filePath) {
+async function download(fileId, filePath, mimeType) {
 
     try {
 
@@ -132,13 +118,13 @@ async function download(fileId, filePath) {
         const dest = fs.createWriteStream(filePath);
 
         var res = await gDrive.files.get(
-            { fileId, alt: 'media' },
+            { fileId, alt: 'media', mimeType: mimeType },
             { responseType: 'stream' }
         );
 
         res.data
             .on('end', () => {
-                logger.info(`Downloaded ${filePath}`);
+                logger.info(`Downloaded ${filePath} - ${mimeType}`);
             })
             .on('error', err => {
                 logger.error(`Error Downloading ${filePath}`);
@@ -147,9 +133,39 @@ async function download(fileId, filePath) {
 
     }
     catch (error) {
+        logger.error(`Download Error : ${fileId} - ${filePath} - ${mimeType}`);
+    }
 
-        logger.error(`Try - Catch Error : ${error}`);
+};
 
+async function exportItem(fileId, filePath, mimeType) {
+
+    try {
+
+        if (fs.existsSync(filePath)) {
+            logger.warn(`File was exported : ${filePath}`);
+            return;
+        }
+
+        const dest = fs.createWriteStream(filePath);
+
+        var res = await gDrive.files.export(
+            { fileId, mimeType: mimeType },
+            { responseType: 'stream' }
+        );
+
+        res.data
+            .on('end', () => {
+                logger.info(`Exported ${filePath} - ${mimeType}`);
+            })
+            .on('error', err => {
+                logger.error(`Error Exporting ${filePath}`);
+            })
+            .pipe(dest);
+
+    }
+    catch (error) {
+        logger.error(`Export Error : ${fileId} - ${filePath} - ${mimeType}`);
     }
 
 };

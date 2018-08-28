@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "debug": "~2.6.9",
-    "google-auth-library": "^1.0.0",
     "googleapis": "^32.0.0",
     "winston": "^2.4.3",
     "winston-daily-rotate-file": "^3.3.0"
