@@ -1,31 +1,32 @@
-const { google } = require('googleapis');
 const fs = require('fs');
-const uuid = require('uuid');
 const path = require('path');
-const os = require('os');
-
 const auth = require('./oauth2_handler');
-
+const { google } = require('googleapis');
 const logger = require('../utils/logger').logger;
+const exportProcess = require('./exportProcess');
+const downloadProcess = require('./downloadProcess');
+const externalFilePath = path.join("/mnt/hdd", "google-drive");
+const timeInterval = 2000;
 
-let externalFilePath = path.join("/mnt/hdd", "google-drive");
-
-var gDrive = null;
-var count = 1;
-var timeInterval = 2000;
+let count = 1;
+let gDrive = null;
+let export_ = null;
+let download_ = null;
 
 function getDriveFiles() {
 
     auth.authClient(function (error, auth) {
 
-        if (error) {
+        if (error)
             logger.error(error);
-        }
 
         gDrive = google.drive({
             version: 'v3',
             auth: auth
         });
+
+        export_ = new exportProcess(gDrive);
+        download_ = new downloadProcess(gDrive);
 
         driveList("sharedWithMe", "root", null, externalFilePath);
 
@@ -40,35 +41,29 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
         orderBy: 'createdTime',
         q: query,
         pageToken: nextPageToken,
-        pageSize: 10
+        pageSize: 200
     }, (err, { data }) => {
 
         var token = data.nextPageToken;
 
         logger.info("Folder Path : " + folderPath);
 
-        if (count > 25) {
-            logger.verbose("The count is " + count + " and will be 1");
-            count = 1;
-        }
-
         if (data.files.length > 0) {
 
             data.files.forEach(element => {
 
-                count++;
+                fixCount();
 
                 if (element.mimeType == "application/vnd.google-apps.folder") {
 
                     var joinedPath = path.join(folderPath, element.name);
 
-                    if (!fs.existsSync(joinedPath)) {
-                        fs.mkdirSync(joinedPath);
-                    } else {
-                        logger.warn(`Folder exists : ${joinedPath}`);
-                    }
-
                     logger.info("Path : " + joinedPath);
+
+                    if (!fs.existsSync(joinedPath))
+                        fs.mkdirSync(joinedPath);
+                    else
+                        logger.warn(`Folder exists : ${joinedPath}`);
 
                     setTimeout(() => {
 
@@ -80,16 +75,19 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
                 } else {
 
-                    setTimeout(() => {
+                    var item = {
+                        fileId: element.id,
+                        filePath: path.join(folderPath, element.name),
+                        mimeType: element.mimeType
+                    };
 
-                        if (element.mimeType.includes("vnd.google-apps"))
-                            exportItem(element.id, path.join(folderPath, element.name), element.mimeType);
-                        else
-                            download(element.id, path.join(folderPath, element.name), element.mimeType);
-
-                    }, timeInterval * count);
+                    if (element.mimeType.includes("vnd.google-apps"))
+                        export_.exportItemArr.push(item);
+                    else
+                        download_.downloadItemArr.push(item);
 
                 }
+
             });
 
             if (token != null) {
@@ -106,69 +104,16 @@ function driveList(query, parentFolderId, nextPageToken, folderPath) {
 
 }
 
-async function download(fileId, filePath, mimeType) {
+function fixCount(){
 
-    try {
+    count++;
 
-        if (fs.existsSync(filePath)) {
-            logger.warn(`File was downloaded : ${filePath}`);
-            return;
-        }
-
-        const dest = fs.createWriteStream(filePath);
-
-        var res = await gDrive.files.get(
-            { fileId, alt: 'media', mimeType: mimeType },
-            { responseType: 'stream' }
-        );
-
-        res.data
-            .on('end', () => {
-                logger.info(`Downloaded ${filePath} - ${mimeType}`);
-            })
-            .on('error', err => {
-                logger.error(`Error Downloading ${filePath}`);
-            })
-            .pipe(dest);
-
-    }
-    catch (error) {
-        logger.error(`Download Error : ${fileId} - ${filePath} - ${mimeType}`);
+    if (count > 25) {
+        logger.verbose("The count is " + count + " and will be 1");
+        count = 1;
     }
 
-};
-
-async function exportItem(fileId, filePath, mimeType) {
-
-    try {
-
-        if (fs.existsSync(filePath)) {
-            logger.warn(`File was exported : ${filePath}`);
-            return;
-        }
-
-        const dest = fs.createWriteStream(filePath);
-
-        var res = await gDrive.files.export(
-            { fileId, mimeType: mimeType },
-            { responseType: 'stream' }
-        );
-
-        res.data
-            .on('end', () => {
-                logger.info(`Exported ${filePath} - ${mimeType}`);
-            })
-            .on('error', err => {
-                logger.error(`Error Exporting ${filePath}`);
-            })
-            .pipe(dest);
-
-    }
-    catch (error) {
-        logger.error(`Export Error : ${fileId} - ${filePath} - ${mimeType}`);
-    }
-
-};
+}
 
 module.exports = {
     getDriveFiles
