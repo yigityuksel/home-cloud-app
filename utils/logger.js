@@ -3,50 +3,42 @@
  */
 const winston = require('winston');
 const winstonRotator = require('winston-daily-rotate-file');
+const date = new Date();
+const formattedDate = "-" + date.getDate() + "-" + date.getMonth() + "-" + date.getFullYear();
 
-const consoleConfig = [
-  new winston.transports.Console({
-    'colorize': true
-  })
-];
+var options = {
+  file: {
+    level: 'info',
+    filename: './logs/app' + formattedDate + '.log',
+    handleExceptions: true,
+    json: true,
+    maxsize: 5242880, // 5MB
+    maxFiles: 5,
+    colorize: false,
+    timestamp: true
+  },
+  console: {
+    level: 'debug',
+    handleExceptions: true,
+    json: false,
+    colorize: true,
+    timestamp: true
+  },
+};
 
-const createLogger = new winston.Logger({
-  'transports': consoleConfig
+var logger = new winston.Logger({
+  transports: [
+    new winston.transports.File(options.file),
+    new winston.transports.Console(options.console)
+  ],
+  exitOnError: false, // do not exit on handled exceptions
 });
 
-const logger = createLogger;
-
-logger.add(winstonRotator, {
-  'name': 'access-file',
-  'level': 'info',
-  'filename': './logs/dailyLogs.log',
-  'json': false,
-  'prepend': true
-});
-
-logger.add(winstonRotator, {
-  'name': 'error-file',
-  'level': 'error',
-  'filename': './logs/dailyLogs.log',
-  'json': false,
-  'prepend': true
-});
-
-logger.add(winstonRotator, {
-  'name': 'warn-file',
-  'level': 'warn',
-  'filename': './logs/dailyLogs.log',
-  'json': false,
-  'prepend': true
-});
-
-logger.add(winstonRotator, {
-  'name': 'verbose-file',
-  'level': 'verbose',
-  'filename': './logs/dailyLogs.log',
-  'json': false,
-  'prepend': true
-});
+logger.stream = {
+  write: function (message, encoding) {
+    logger.info(message);
+  },
+};
 
 module.exports = {
   'logger': logger
