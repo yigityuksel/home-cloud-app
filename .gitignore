@@ -1,2 +1,11 @@
 #google credentials
 credentials.json
+
+#logs
+logs/
+
+#node_modules
+node_modules/
+
+#vs_code
+.vscode
