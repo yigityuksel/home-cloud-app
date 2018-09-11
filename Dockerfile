@@ -1,6 +1,9 @@
+#!/bin/bash 
+
 FROM node:8
 
 # Create app directory
+RUN mkdir -p /usr/src/home-cloud-app
 WORKDIR /usr/src/home-cloud-app
 
 # Install app dependencies
@@ -8,11 +11,11 @@ WORKDIR /usr/src/home-cloud-app
 # where available (npm@5+)
 COPY package*.json ./
 
-RUN npm run
+RUN npm install
 # If you are building your code for production
 # RUN npm install --only=production
 
 # Bundle app source
-COPY . .
+COPY . /usr/src/home-cloud-app
 
 CMD [ "npm", "start" ]
