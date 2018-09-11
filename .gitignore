@@ -1,5 +1,6 @@
 #google credentials
 credentials.json
+.env
 
 #logs
 logs/

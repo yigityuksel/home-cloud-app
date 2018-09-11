@@ -1,8 +1,8 @@
 const fs = require('fs')
 const { google } = require('googleapis')
 
-const CREDENTIALS = JSON.parse(fs.readFileSync('./google-api/credentials.json', 'utf8'));
-const SCOPES = ['https://www.googleapis.com/auth/drive']
+const CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+const SCOPES = [process.env.SCOPES]
 
 function authClient(callback) {
 
