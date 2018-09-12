@@ -3,7 +3,9 @@ credentials.json
 .env
 
 #logs
-logs/
+logs/*
+!logs/.gitkeep 
+
 
 #node_modules
 node_modules/
