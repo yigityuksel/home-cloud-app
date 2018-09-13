@@ -11,9 +11,7 @@ function authClient(callback) {
         scopes: SCOPES
     }).then((auth) => {
         google.auth.getDefaultProjectId().then(project => {
-            console.log("User Authenticated");          
             callback(null, auth);
-
         }).catch(err => {
             console.error('Error occured while trying to fetch default project id.', err)
             callback(err);
@@ -25,6 +23,23 @@ function authClient(callback) {
 
 }
 
+function getGoogleApi(callback) {
+
+    authClient(function (error, auth) {
+
+        if (error) {
+            logger.error(error);
+            callback(error);
+        }
+
+        callback(null, google.drive({
+            version: 'v3',
+            auth: auth
+        }));
+
+    });
+}
+
 module.exports = {
-    authClient
+    getGoogleApi
 }
