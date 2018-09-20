@@ -1,69 +1,60 @@
 const fs = require('fs');
 const logger = require('../utils/logger').logger;
-let googleDrive = null;
+const systemBase = require('../system/systemBase');
 
-var successCount = 0;
-var errorCount = 0;
+module.exports = class exportProcess extends systemBase {
 
-exportProcess.prototype.exportItemArr = [];
+    constructor(googleDrive_, fileProperties_) {
+        super();
+        this.googleDrive = googleDrive_;
+        this.fileProperties = fileProperties_;
+    }
 
-exportProcess.prototype.exportItemArr.push = function (item) {
-    Array.prototype.push.apply(this, arguments);
-    exportItem(item);
-}
+    call(callback) {
 
-function exportProcess(gDrive) {
-    googleDrive = gDrive;
-}
+        new Promise(async (resolve, reject) => {
 
-async function exportItem(fileProperties) {
+            try {
 
-    return new Promise(async (resolve, reject) => {
+                if (fs.existsSync(this.fileProperties.filePath)) {
+                    logger.warn(`File was exported : ${this.fileProperties.filePath}`);
+                    callback(true);
+                    return;
+                }
 
-        try {
+                const dest = fs.createWriteStream(this.fileProperties.filePath);
 
-            if (fs.existsSync(fileProperties.filePath)) {
-                logger.warn(`File was exported : ${fileProperties.filePath}`);
-                resolve();
-                return;
+                var res = await this.googleDrive.files.export(
+                    {
+                        fileId: this.fileProperties.fileId,
+                        mimeType: this.fileProperties.mimeType
+                    },
+                    {
+                        responseType: 'stream'
+                    }
+                );
+
+                res.data
+                    .on('end', () => {
+                        logger.info(`Exported ${this.fileProperties.filePath} - ${this.fileProperties.mimeType}`);
+                        callback(true);
+                    })
+                    .on('error', err => {
+                        logger.error(`Error Exporting ${this.fileProperties.filePath}`);
+                        callback(false);
+                    })
+                    .pipe(dest);
+
+            }
+            catch (error) {
+
+                logger.error(`Export Error : ${this.fileProperties.fileId} - ${this.fileProperties.filePath} - ${this.fileProperties.mimeType}`);
+                callback(true);
+
             }
 
-            const dest = fs.createWriteStream(fileProperties.filePath);
+        });
 
-            var res = await googleDrive.files.export(
-                {
-                    fileId: fileProperties.fileId,
-                    mimeType: fileProperties.mimeType
-                },
-                {
-                    responseType: 'stream'
-                }
-            );
+    }
 
-            res.data
-                .on('end', () => {
-                    logger.info(`Exported ${fileProperties.filePath} - ${fileProperties.mimeType}`);
-                    successCount++;
-                    resolve(fileProperties.filePath);
-                })
-                .on('error', err => {
-                    logger.error(`Error Exporting ${fileProperties.filePath}`);
-                    reject(err.message);
-                })
-                .pipe(dest);
-
-        }
-        catch (error) {
-            
-            errorCount++;
-            logger.error(`Export Error : ${fileProperties.fileId} - ${fileProperties.filePath} - ${fileProperties.mimeType}`);
-
-        }
-
-        logger.info("Total Export " + exportProcess.prototype.exportItemArr.length  +  " Success/Error : " + successCount + "/" + errorCount);
-
-    });
-
-};
-
-module.exports = exportProcess;
+}
