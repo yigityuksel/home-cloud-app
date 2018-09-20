@@ -1,76 +1,65 @@
 const fs = require('fs');
 const logger = require('../utils/logger').logger;
-let googleDrive = null;
+const systemBase = require('../system/systemBase');
 
-var successCount = 0;
-var errorCount = 0;
+module.exports = class downloadProcess extends systemBase {
 
-downloadProcess.prototype.downloadItemArr = [];
+    constructor(googleDrive_, fileProperties_) {
+        super();
+        this.googleDrive = googleDrive_;
+        this.fileProperties = fileProperties_;
+    }
 
-downloadProcess.prototype.downloadItemArr.push = function (item) {
+    call(callback) {
 
-    Array.prototype.push.apply(this, arguments);
+        new Promise(async (resolve, reject) => {
 
-    setTimeout(() => {
-        downloadItem(item);
-    }, 200 * this.length);
+            try {
 
-}
+                if (fs.existsSync(this.fileProperties.filePath)) {
+                    logger.warn(`File was downloaded : ${this.fileProperties.filePath}`);
+                    callback(true);
+                    return;
+                }
 
-function downloadProcess(gDrive) {
-    googleDrive = gDrive;
-}
+                const dest = fs.createWriteStream(this.fileProperties.filePath);
+                let progress = 0;
 
-async function downloadItem(fileProperties, callback) {
+                var res = await this.googleDrive.files.get(
+                    {
+                        fileId: this.fileProperties.fileId,
+                        alt: 'media',
+                        mimeType: this.fileProperties.mimeType
+                    },
+                    {
+                        responseType: 'stream'
+                    }
+                );
 
-    return new Promise(async (resolve, reject) => {
+                res.data
+                    .on('end', () => {
+                        logger.info(`Downloaded ${this.fileProperties.filePath} - ${this.fileProperties.mimeType}`);
+                        callback(true);
+                    })
+                    .on('error', err => {
+                        logger.error(`Error Downloading ${this.fileProperties.filePath}`);
+                        callback(false);
+                    })
+                    .on('data', d => {
+                        logger.verbose(`Downloading ${progress} bytes - ${this.fileProperties.filePath}`);
+                    })
+                    .pipe(dest);
 
-        try {
+            }
+            catch (error) {
 
-            if (fs.existsSync(fileProperties.filePath)) {
-                logger.warn(`File was downloaded : ${fileProperties.filePath}`);
-                resolve();
-                return;
+                logger.error(`Download Error : ${this.fileProperties.fileId} - ${this.fileProperties.filePath} - ${this.fileProperties.mimeType}`);
+                callback(true);
+
             }
 
-            const dest = fs.createWriteStream(fileProperties.filePath);
+        });
 
-            var res = await googleDrive.files.get(
-                {
-                    fileId: fileProperties.fileId,
-                    alt: 'media',
-                    mimeType: fileProperties.mimeType
-                },
-                {
-                    responseType: 'stream'
-                }
-            );
+    }
 
-            res.data
-                .on('end', () => {
-                    successCount++;
-                    logger.info(`Downloaded ${fileProperties.filePath} - ${fileProperties.mimeType} - Total ${downloadProcess.prototype.downloadItemArr.length} Success/Error : ${successCount} / ${errorCount}`);
-                    resolve(fileProperties.filePath);
-                })
-                .on('error', err => {
-                    logger.error(`Error Downloading ${fileProperties.filePath}`);
-                    reject(err.message);
-                })
-                .pipe(dest);
-
-        }
-        catch (error) {
-
-            errorCount++;
-            logger.error(`Download Error : ${fileProperties.fileId} - ${fileProperties.filePath} - ${fileProperties.mimeType}`);
-
-        }
-
-
-    });
-
-    resolve();
-
-};
-
-module.exports = downloadProcess;
+}
