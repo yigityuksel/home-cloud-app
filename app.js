@@ -1,5 +1,8 @@
 require('dotenv').config()
-const googlePhotoHandler = require('./google-api/google-photos-handler');
+const googlePhotoHandler = require('./google-api/googlePhotoHandler');
 
+googlePhotoHandler.initalSyncDriveFiles();
 
-googlePhotoHandler.getDriveFiles();
+//googlePhotoHandler.getStartPageToken(1);
+
+//googlePhotoHandler.getFile();
