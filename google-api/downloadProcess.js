@@ -46,10 +46,7 @@ module.exports = class downloadProcess extends systemBase {
                         callback(false);
                     })
                     .on('data', d => {
-                        progress += d.length;
-                        process.stdout.clearLine();
-                        process.stdout.cursorTo(0);
-                        process.stdout.write(`Downloading ${progress} bytes - ${this.fileProperties.filePath}`);
+                        logger.verbose(`Downloading ${progress} bytes - ${this.fileProperties.filePath}`);
                     })
                     .pipe(dest);
 
